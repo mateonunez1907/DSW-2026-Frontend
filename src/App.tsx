@@ -10,9 +10,11 @@ type EstadoCarga = 'inicial' | 'cargando' | 'error' | 'exito'
 function App() {
   const [usuarios, setUsuarios] = useState <Usuario[]> ([])
   const [estado, setEstado] = useState<EstadoCarga>('inicial')
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<Usuario | null>(null)
 
   async function cargarUsuarios(){
     setEstado('cargando')
+    setUsuarioSeleccionado(null)
 
     try {
       const datos = await getUsuario()
@@ -21,6 +23,10 @@ function App() {
     } catch {
       setEstado('error')
     }
+  }
+
+  function seleccionarUsuario (usuario: Usuario){
+    setUsuarioSeleccionado(usuario)
   }
 
   return (
@@ -61,7 +67,43 @@ function App() {
         )}
 
         {estado === 'exito' && usuarios.length > 0 && (
-          <ListaUsuarios usuarios={usuarios} />
+          <ListaUsuarios usuarios={usuarios} onSeleccionar={seleccionarUsuario}/>
+        )}
+        
+        {estado === 'exito' && usuarios.length > 0 && (
+          <ListaUsuarios
+            usuarios={usuarios}
+            onSeleccionar={seleccionarUsuario}
+          />
+        )}
+
+        {usuarioSeleccionado !== null && (
+          <section aria-labelledby="titulo-detalle">
+            <h3 id="titulo-detalle">Detalle del usuario</h3>
+
+            <p>
+              <strong>Nombre:</strong> {usuarioSeleccionado.nombre}
+            </p>
+
+            <p>
+              <strong>Apellido:</strong> {usuarioSeleccionado.apellido}
+            </p>
+
+            <p>
+              <strong>Email:</strong> {usuarioSeleccionado.email}
+            </p>
+
+            <p>
+              <strong>Id:</strong> {usuarioSeleccionado.id} // Sacar
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setUsuarioSeleccionado(null)}
+            >
+              Cerrar detalle
+            </button>
+          </section>
         )}
       </section>
     </main>
