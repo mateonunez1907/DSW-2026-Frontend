@@ -3,6 +3,8 @@ import type { Usuario } from './types/usuario'
 import { useState } from 'react'
 import { getUsuario } from './services/usuario.service.ts'
 import ListaUsuarios from './components/ListaUsuarios.tsx'
+import FormularioUsuario from './components/FormularioUsuario'
+
 
 
 type EstadoCarga = 'inicial' | 'cargando' | 'error' | 'exito'
@@ -33,6 +35,8 @@ function App() {
     <main className="app">
       <h1>Sistema de reservas de espacios</h1>
 
+      <FormularioUsuario onCreado={cargarUsuarios} />
+      
       <section aria-labelledby='titulo-usuarios'>
         <h2 id= 'titulo-usuarios' >Usuarios</h2>
         <p>Consultá los usuarios registrados en el sistema</p>
@@ -66,10 +70,6 @@ function App() {
           </p>
         )}
 
-        {estado === 'exito' && usuarios.length > 0 && (
-          <ListaUsuarios usuarios={usuarios} onSeleccionar={seleccionarUsuario}/>
-        )}
-        
         {estado === 'exito' && usuarios.length > 0 && (
           <ListaUsuarios
             usuarios={usuarios}

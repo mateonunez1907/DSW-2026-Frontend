@@ -1,5 +1,4 @@
-import type { Usuario} from '../types/usuario';
-
+import type { Usuario, NuevoUsuario} from '../types/usuario';
 
 // Todos los users
 
@@ -14,4 +13,25 @@ export async function getUsuario(): Promise<Usuario[]> {
 
   return contenido.data 
 }
+
+export async function crearUsuario(  datos: NuevoUsuario): Promise<Usuario>{
+  const respuesta = await fetch ('/api/usuarios',{
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(datos),
+  })
+
+  if (!respuesta.ok){
+    throw new Error('No se pudo crear el usuario :(')
+  }
+
+  const contenido: { data : Usuario } = await respuesta.json()
+
+  return contenido.data
+}
+
+
+
 

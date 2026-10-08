@@ -4,3 +4,9 @@ export interface Usuario {
   apellido: string;
   email: string;
 }
+
+export interface NuevoUsuario {
+  nombre: string;
+  apellido: string;
+  email: string;
+}
