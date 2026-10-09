@@ -53,4 +53,12 @@ export async function actualizarUsuario(
   return contenido.data
 }
 
+export async function eliminarUsuario(id: string): Promise<void> {
+  const respuesta = await fetch(`/api/usuarios/${id}`, {
+    method: 'DELETE',
+  })
 
+  if (!respuesta.ok) {
+    throw new Error('No se pudo eliminar el usuario')
+  }
+}
