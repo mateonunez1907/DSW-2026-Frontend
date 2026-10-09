@@ -1,20 +1,23 @@
-import './App.css'
-import type { Usuario } from './types/usuario'
 import { useState } from 'react'
-import { getUsuario } from './services/usuario.service.ts'
-import ListaUsuarios from './components/ListaUsuarios.tsx'
+import type { Usuario } from './types/usuario'
+import { getUsuario } from './services/usuario.service'
+import ListaUsuarios from './components/ListaUsuarios'
 import FormularioUsuario from './components/FormularioUsuario'
-
-
+import './App.css'
 
 type EstadoCarga = 'inicial' | 'cargando' | 'error' | 'exito'
 
 function App() {
-  const [usuarios, setUsuarios] = useState <Usuario[]> ([])
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [estado, setEstado] = useState<EstadoCarga>('inicial')
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<Usuario | null>(null)
 
-  async function cargarUsuarios(){
+  const [usuarioSeleccionado, setUsuarioSeleccionado] =
+    useState<Usuario | null>(null)
+
+  const [usuarioEnEdicion, setUsuarioEnEdicion] =
+    useState<Usuario | null>(null)
+
+  async function cargarUsuarios() {
     setEstado('cargando')
     setUsuarioSeleccionado(null)
 
@@ -27,47 +30,53 @@ function App() {
     }
   }
 
-  function seleccionarUsuario (usuario: Usuario){
+  function seleccionarUsuario(usuario: Usuario) {
     setUsuarioSeleccionado(usuario)
+  }
+
+  function finalizarGuardado() {
+    setUsuarioEnEdicion(null)
+    cargarUsuarios()
   }
 
   return (
     <main className="app">
       <h1>Sistema de reservas de espacios</h1>
 
-      <FormularioUsuario onCreado={cargarUsuarios} />
-      
-      <section aria-labelledby='titulo-usuarios'>
-        <h2 id= 'titulo-usuarios' >Usuarios</h2>
-        <p>Consultá los usuarios registrados en el sistema</p>
+      <FormularioUsuario
+        key={usuarioEnEdicion ? usuarioEnEdicion.id : 'nuevo'}
+        usuario={usuarioEnEdicion}
+        onGuardado={finalizarGuardado}
+        onCancelar={() => setUsuarioEnEdicion(null)}
+      />
 
-        <button 
+      <section aria-labelledby="titulo-usuarios">
+        <h2 id="titulo-usuarios">Usuarios</h2>
+        <p>Consultá los usuarios registrados en el sistema.</p>
+
+        <button
           type="button"
-          onClick = {cargarUsuarios}
-          disabled = {estado ==='cargando'}
-          >
+          onClick={cargarUsuarios}
+          disabled={estado === 'cargando'}
+        >
           {estado === 'inicial' && 'Cargar usuarios'}
-          {estado === 'cargando' && 'Cargando...'}
+          {estado === 'cargando' && 'Cargando…'}
           {estado === 'exito' && 'Actualizar listado'}
           {estado === 'error' && 'Reintentar'}
         </button>
 
         {estado === 'cargando' && (
-          <p role = "status">
-            Cargando usuarios...
-          </p>
+          <p role="status">Cargando usuarios…</p>
         )}
 
         {estado === 'error' && (
           <p role="alert">
-            No pudimos cargar los usuarios. No podemos acceder a los datos. Intente nuevamente.
+            No pudimos cargar los usuarios. Intentá nuevamente.
           </p>
         )}
 
         {estado === 'exito' && usuarios.length === 0 && (
-          <p>
-            No hay usuarios registrados.
-          </p>
+          <p>No hay usuarios registrados.</p>
         )}
 
         {estado === 'exito' && usuarios.length > 0 && (
@@ -93,9 +102,12 @@ function App() {
               <strong>Email:</strong> {usuarioSeleccionado.email}
             </p>
 
-            <p>
-              <strong>Id:</strong> {usuarioSeleccionado.id} // Sacar
-            </p>
+            <button
+              type="button"
+              onClick={() => setUsuarioEnEdicion(usuarioSeleccionado)}
+            >
+              Editar usuario
+            </button>
 
             <button
               type="button"

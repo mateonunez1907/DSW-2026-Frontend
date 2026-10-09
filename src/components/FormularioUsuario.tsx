@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import type { NuevoUsuario } from '../types/usuario.ts'
-import { crearUsuario } from '../services/usuario.service.ts'
+import type {Usuario, NuevoUsuario } from '../types/usuario.ts'
+import { crearUsuario, actualizarUsuario } from '../services/usuario.service.ts'
 
 interface FormularioUsuarioProps {
-  onCreado: () => void
+  usuario: Usuario | null
+  onGuardado: () => void
+  onCancelar: () => void
 }
 
-function FormularioUsuario({onCreado}: FormularioUsuarioProps){
-  const [nombre, setNombre] = useState('')
-  const [apellido, setApellido] = useState('')
-  const [email, setEmail] = useState('')
+function FormularioUsuario({usuario, onGuardado, onCancelar}: FormularioUsuarioProps){
+  const [nombre, setNombre] = useState(usuario ? usuario.nombre : '')
+  const [apellido, setApellido] = useState(usuario ? usuario.apellido : '')
+  const [email, setEmail] = useState(usuario ? usuario.email : '')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
@@ -36,24 +38,31 @@ function FormularioUsuario({onCreado}: FormularioUsuarioProps){
     setGuardando(true)
 
     try {
-      await crearUsuario(datos)
+      if (usuario) {
+        await actualizarUsuario(usuario.id, datos)
+        setMensaje('Usuario actualizado correctamente.')
+      } else {
+        await crearUsuario(datos)
+        setMensaje('Usuario creado correctamente.')
+      }
 
       setNombre('')
       setApellido('')
       setEmail('')
-      setMensaje('Usuario creado correctamente.')
 
-      onCreado()
+      onGuardado()
     } catch {
-      setError('No pudimos crear el usuario. Intentá nuevamente.')
-    }finally {
+      setError('No pudimos guardar el usuario. Intentá nuevamente.')
+    } finally {
       setGuardando(false)
     }
   }
 
   return (
-    <section aria-labelledby='titulo-crear-usuario'>
-      <h2 id="titulo-crear-usuario">Crear usuario</h2>
+    <section aria-labelledby='titulo-formulario-usuario'>
+      <h2 id="titulo-formulario-usuario">
+        {usuario ? 'Editar usuario' : 'Crear usuario'}
+      </h2>
 
       <form 
         onSubmit={(evento) =>{
@@ -101,12 +110,21 @@ function FormularioUsuario({onCreado}: FormularioUsuarioProps){
             />
           </div>
 
-          <button type= "submit">
-            {guardando ? 'Guardando...' : 'Crear usuario'} 
+          <button type="submit">
+            {guardando
+              ? 'Guardando…'
+              : usuario
+                ? 'Guardar cambios'
+                : 'Crear usuario'}
           </button>
+
+          {usuario !== null && (
+            <button type="button" onClick={onCancelar}>
+              Cancelar edición
+            </button>
+          )}
         </fieldset>
       </form>
-
       {error && <p role="alert">{error}</p>}
       {mensaje && <p role="status">{mensaje}</p>}
 
