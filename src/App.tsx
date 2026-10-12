@@ -3,6 +3,7 @@ import type { Usuario } from './types/usuario'
 import { getUsuario, eliminarUsuario } from './services/usuario.service'
 import ListaUsuarios from './components/ListaUsuarios'
 import FormularioUsuario from './components/FormularioUsuario'
+import GestionEspacios from './components/GestionEspacios.tsx'
 import './App.css'
 
 type EstadoCarga = 'inicial' | 'cargando' | 'error' | 'exito'
@@ -189,6 +190,8 @@ function App() {
           </section>
         )}
       </section>
+
+      <GestionEspacios />
     </main>
   )
 }
