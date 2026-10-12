@@ -74,7 +74,7 @@ function App() {
       await eliminarUsuario(usuario.id)
 
       setUsuarioEnEdicion(null)
-      setErrorEliminacion('Usuario eliminado correctamente.')
+      setMensajeEliminacion('Usuario eliminado correctamente.')
 
       await cargarUsuarios()
     } catch {
