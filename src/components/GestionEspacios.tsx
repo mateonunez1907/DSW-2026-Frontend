@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Espacio } from '../types/espacio'
 import { getEspacios } from '../services/espacio.service'
+import FormularioEspacio from './FormularioEspacio'
 
 type EstadoCarga = 'inicial' | 'cargando' | 'exito' | 'error'
 
@@ -32,6 +33,8 @@ function GestionEspacios() {
     <section aria-labelledby="titulo-espacios">
       <h2 id="titulo-espacios">Espacios</h2>
       <p>Consultá los espacios registrados en el sistema.</p>
+
+      <FormularioEspacio onCreado={cargarEspacios} />
 
       <button
         type="button"
