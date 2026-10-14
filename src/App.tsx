@@ -4,6 +4,7 @@ import { getUsuario, eliminarUsuario } from './services/usuario.service'
 import ListaUsuarios from './components/ListaUsuarios'
 import FormularioUsuario from './components/FormularioUsuario'
 import GestionEspacios from './components/GestionEspacios.tsx'
+import GestionReservas from './components/GestionReservas'
 import './App.css'
 
 type EstadoCarga = 'inicial' | 'cargando' | 'error' | 'exito'
@@ -192,6 +193,7 @@ function App() {
       </section>
 
       <GestionEspacios />
+      <GestionReservas />
     </main>
   )
 }
