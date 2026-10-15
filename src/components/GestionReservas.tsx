@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import type { Reserva } from '../types/reserva'
-import { getReservas, getReserva } from '../services/reserva.service'
+import {
+  getReservas,
+  getReserva,
+  cambiarEstadoReserva,
+} from '../services/reserva.service'
+import { getEstados } from '../services/estado.service'
 
 type EstadoCarga = 'inicial' | 'cargando' | 'exito' | 'error'
 
@@ -17,14 +22,26 @@ function GestionReservas() {
   const [estadoDetalle, setEstadoDetalle] =
     useState<EstadoCarga>('inicial')
 
+  const [guardando, setGuardando] = useState(false)
+  const [mensajeExito, setMensajeExito] = useState('')
+  const [mensajeError, setMensajeError] = useState('')
+
   const consultando =
-    estadoLista === 'cargando' || estadoDetalle === 'cargando'
+    estadoLista === 'cargando' ||
+    estadoDetalle === 'cargando' ||
+    guardando
+
+  function limpiarMensajes() {
+    setMensajeExito('')
+    setMensajeError('')
+  }
 
   function limpiarResultados() {
     setReservas([])
     setEstadoLista('inicial')
     setReservaSeleccionada(null)
     setEstadoDetalle('inicial')
+    limpiarMensajes()
   }
 
   async function cargarReservas() {
@@ -46,6 +63,7 @@ function GestionReservas() {
   }
 
   async function verDetalle(id: number) {
+    limpiarMensajes()
     setReservaSeleccionada(null)
     setEstadoDetalle('cargando')
 
@@ -56,6 +74,48 @@ function GestionReservas() {
       setEstadoDetalle('exito')
     } catch {
       setEstadoDetalle('error')
+    }
+  }
+
+  async function cambiarEstado(nombre: 'aprobada' | 'rechazada') {
+    if (reservaSeleccionada === null || consultando) {
+      return
+    }
+
+    limpiarMensajes()
+    setGuardando(true)
+
+    try {
+      const estados = await getEstados()
+
+      const nuevoEstado = estados.find(
+        (estado) => estado.nombre === nombre
+      )
+
+      if (!nuevoEstado) {
+        throw new Error('No se encontró el estado solicitado')
+      }
+
+      await cambiarEstadoReserva(
+        reservaSeleccionada.id,
+        nuevoEstado.id
+      )
+
+      setMensajeExito(
+        nombre === 'aprobada'
+          ? 'Reserva aprobada correctamente.'
+          : 'Reserva rechazada correctamente.'
+      )
+
+      await cargarReservas()
+    } catch (error) {
+      setMensajeError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo cambiar el estado de la reserva'
+      )
+    } finally {
+      setGuardando(false)
     }
   }
 
@@ -71,13 +131,12 @@ function GestionReservas() {
       <form
         onSubmit={(evento) => {
           evento.preventDefault()
+          limpiarMensajes()
           cargarReservas()
         }}
       >
         <div>
-          <label htmlFor="filtro-estado-reserva">
-            Estado
-          </label>
+          <label htmlFor="filtro-estado-reserva">Estado</label>
 
           <select
             id="filtro-estado-reserva"
@@ -98,9 +157,7 @@ function GestionReservas() {
         </div>
 
         <div>
-          <label htmlFor="filtro-fecha-reserva">
-            Fecha
-          </label>
+          <label htmlFor="filtro-fecha-reserva">Fecha</label>
 
           <input
             id="filtro-fecha-reserva"
@@ -122,13 +179,26 @@ function GestionReservas() {
         </button>
       </form>
 
+      {guardando && (
+        <p role="status">Procesando la solicitud...</p>
+      )}
+
+      {mensajeExito !== '' && (
+        <p role="status">{mensajeExito}</p>
+      )}
+
+      {mensajeError !== '' && (
+        <p role="alert">{mensajeError}</p>
+      )}
+
       {estadoLista === 'cargando' && (
         <p role="status">Buscando reservas...</p>
       )}
 
       {estadoLista === 'error' && (
         <p role="alert">
-          No pudimos cargar las reservas. Intentá nuevamente.
+          No pudimos cargar el listado de reservas.
+          Presioná Buscar reservas para reintentar.
         </p>
       )}
 
@@ -143,20 +213,18 @@ function GestionReservas() {
               <h3>{reserva.espacio.nombre}</h3>
 
               <p>
-                Usuario: {reserva.usuario.nombre} {reserva.usuario.apellido}
+                Usuario: {reserva.usuario.nombre}
+                {' '}
+                {reserva.usuario.apellido}
               </p>
 
-              <p>
-                Fecha: {reserva.fecha}
-              </p>
+              <p>Fecha: {reserva.fecha}</p>
 
               <p>
                 Horario: {reserva.horaInicio} a {reserva.horaFin}
               </p>
 
-              <p>
-                Estado: {reserva.estado.nombre}
-              </p>
+              <p>Estado: {reserva.estado.nombre}</p>
 
               <button
                 type="button"
@@ -231,11 +299,35 @@ function GestionReservas() {
             {reservaSeleccionada.espacio.capacidad} personas
           </p>
 
+          {reservaSeleccionada.estado.nombre === 'pendiente' && (
+            <div>
+              <h4>Resolver solicitud</h4>
+
+              <button
+                type="button"
+                disabled={consultando}
+                onClick={() => cambiarEstado('aprobada')}
+              >
+                Aprobar reserva
+              </button>
+
+              <button
+                type="button"
+                disabled={consultando}
+                onClick={() => cambiarEstado('rechazada')}
+              >
+                Rechazar reserva
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
+            disabled={consultando}
             onClick={() => {
               setReservaSeleccionada(null)
               setEstadoDetalle('inicial')
+              limpiarMensajes()
             }}
           >
             Cerrar detalle

@@ -41,3 +41,27 @@ export async function getReserva(id: number): Promise<Reserva> {
 
   return contenido.data
 }
+
+export async function cambiarEstadoReserva(
+  id: number,
+  estadoId: number
+): Promise<void> {
+  const respuesta = await fetch(`/api/reservas/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      estado: estadoId,
+    }),
+  })
+
+  if (!respuesta.ok) {
+    const contenido: { message?: string } | null =
+      await respuesta.json().catch(() => null)
+
+    throw new Error(
+      contenido?.message || 'No se pudo cambiar el estado de la reserva'
+    )
+  }
+}
