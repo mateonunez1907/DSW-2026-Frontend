@@ -29,3 +29,11 @@ export interface FiltrosReserva {
   estado?: string
   fecha?: string
 }
+
+export interface NuevaReserva {
+  usuario: number
+  espacio: number
+  fecha: string
+  horaInicio: string
+  horaFin: string
+}
