@@ -1,33 +1,40 @@
-import type { Espacio, NuevoEspacio } from '../types/espacio'
+import type {
+  Espacio,
+  FiltroDisponibilidad,
+  NuevoEspacio,
+} from '../types/espacio'
+import { solicitar } from './api'
+import { aHoraCompleta } from '../utils/horarios'
 
-export async function getEspacios(): Promise<Espacio[]> {
-  const respuesta = await fetch('/api/espacios');
-
-  if (!respuesta.ok) {
-    throw new Error('No se pudieron obtener los espacios');
+export function getEspacios(filtro?: FiltroDisponibilidad): Promise<Espacio[]> {
+  if (!filtro || filtro.modo === 'todos') {
+    return solicitar<Espacio[]>('/api/espacios')
   }
 
-  const contenido : { data: Espacio[] } = await respuesta.json();
-
-  return contenido.data 
-}
-
-export async function crearEspacio(
-  datos: NuevoEspacio
-): Promise<Espacio>{
-  const respuesta = await fetch('/api/espacios', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(datos),
+  const parametros = new URLSearchParams({
+    disponibilidad: filtro.modo,
+    fecha: filtro.fecha,
+    horaInicio: aHoraCompleta(filtro.horaInicio),
+    horaFin: aHoraCompleta(filtro.horaFin),
   })
 
-  if (!respuesta.ok) {
-    throw new Error('No se pudo crear el espacio')
-  }
+  return solicitar<Espacio[]>(`/api/espacios?${parametros}`)
+}
 
-  const contenido: {data: Espacio} = await respuesta.json()
+export function crearEspacio(datos: NuevoEspacio): Promise<Espacio> {
+  return solicitar<Espacio>('/api/espacios', { metodo: 'POST', cuerpo: datos })
+}
 
-  return contenido.data
+export function actualizarEspacio(
+  id: number,
+  datos: NuevoEspacio
+): Promise<Espacio> {
+  return solicitar<Espacio>(`/api/espacios/${id}`, {
+    metodo: 'PUT',
+    cuerpo: datos,
+  })
+}
+
+export function eliminarEspacio(id: number): Promise<void> {
+  return solicitar(`/api/espacios/${id}`, { metodo: 'DELETE' })
 }

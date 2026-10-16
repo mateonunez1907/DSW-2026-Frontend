@@ -1,64 +1,24 @@
-import type { Usuario, NuevoUsuario} from '../types/usuario';
+import type { NuevoUsuario, Usuario } from '../types/usuario'
+import { solicitar } from './api'
 
-// Todos los users
-
-export async function getUsuario(): Promise<Usuario[]> {
-  const respuesta = await fetch('/api/usuarios');
-
-  if (!respuesta.ok) {
-    throw new Error('No se pudieron obtener los usuarios');
-  }
-
-  const contenido : { data: Usuario[] } = await respuesta.json();
-
-  return contenido.data 
+export function getUsuarios(): Promise<Usuario[]> {
+  return solicitar<Usuario[]>('/api/usuarios')
 }
 
-export async function crearUsuario(  datos: NuevoUsuario): Promise<Usuario>{
-  const respuesta = await fetch ('/api/usuarios',{
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(datos),
-  })
-
-  if (!respuesta.ok){
-    throw new Error('No se pudo crear el usuario :(')
-  }
-
-  const contenido: { data : Usuario } = await respuesta.json()
-
-  return contenido.data
+export function crearUsuario(datos: NuevoUsuario): Promise<Usuario> {
+  return solicitar<Usuario>('/api/usuarios', { metodo: 'POST', cuerpo: datos })
 }
 
-export async function actualizarUsuario(
-  id: string,
+export function actualizarUsuario(
+  id: number,
   datos: NuevoUsuario
 ): Promise<Usuario> {
-  const respuesta = await fetch(`/api/usuarios/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(datos),
+  return solicitar<Usuario>(`/api/usuarios/${id}`, {
+    metodo: 'PUT',
+    cuerpo: datos,
   })
-
-  if (!respuesta.ok) {
-    throw new Error('No se pudo actualizar el usuario')
-  }
-
-  const contenido: { data: Usuario } = await respuesta.json()
-
-  return contenido.data
 }
 
-export async function eliminarUsuario(id: string): Promise<void> {
-  const respuesta = await fetch(`/api/usuarios/${id}`, {
-    method: 'DELETE',
-  })
-
-  if (!respuesta.ok) {
-    throw new Error('No se pudo eliminar el usuario')
-  }
+export function eliminarUsuario(id: number): Promise<void> {
+  return solicitar(`/api/usuarios/${id}`, { metodo: 'DELETE' })
 }

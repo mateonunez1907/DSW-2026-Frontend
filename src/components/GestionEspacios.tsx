@@ -1,120 +1,251 @@
-import { useState } from 'react'
-import type { Espacio } from '../types/espacio'
-import { getEspacios } from '../services/espacio.service'
+import { useCallback, useState, type FormEvent } from 'react'
+import type {
+  Espacio,
+  FiltroDisponibilidad,
+  ModoDisponibilidad,
+} from '../types/espacio'
+import { eliminarEspacio, getEspacios } from '../services/espacio.service'
+import { useCarga } from '../hooks/useCarga'
+import { formatearFecha } from '../utils/horarios'
+import Alerta from './ui/Alerta'
+import Boton from './ui/Boton'
+import Campo from './ui/Campo'
+import Carga from './ui/Carga'
+import EncabezadoSeccion from './ui/EncabezadoSeccion'
+import Selector from './ui/Selector'
+import Tarjeta from './ui/Tarjeta'
 import FormularioEspacio from './FormularioEspacio'
 
-type EstadoCarga = 'inicial' | 'cargando' | 'exito' | 'error'
+const filtroInicial: FiltroDisponibilidad = {
+  modo: 'todos',
+  fecha: '',
+  horaInicio: '',
+  horaFin: '',
+}
+
+function describirFiltro(filtro: FiltroDisponibilidad): string {
+  if (filtro.modo === 'todos') {
+    return 'Todos los espacios'
+  }
+
+  const tipo = filtro.modo === 'disponibles' ? 'disponibles' : 'no disponibles'
+
+  return `Espacios ${tipo} el ${formatearFecha(filtro.fecha)} de ${filtro.horaInicio} a ${filtro.horaFin}`
+}
 
 function GestionEspacios() {
-  const [espacios, setEspacios] = useState<Espacio[]>([])
-  const [estado, setEstado] = useState<EstadoCarga>('inicial')
+  const [modo, setModo] = useState<ModoDisponibilidad>('todos')
+  const [fecha, setFecha] = useState('')
+  const [horaInicio, setHoraInicio] = useState('')
+  const [horaFin, setHoraFin] = useState('')
+  const [errorFiltro, setErrorFiltro] = useState('')
+  const [filtroAplicado, setFiltroAplicado] =
+    useState<FiltroDisponibilidad>(filtroInicial)
 
-  const [espacioSeleccionado, setEspacioSeleccionado] =
-    useState<Espacio | null>(null)
+  const obtener = useCallback(() => getEspacios(filtroAplicado), [filtroAplicado])
+  const {
+    datos: espacios,
+    estado,
+    error,
+    recargar,
+  } = useCarga<Espacio[]>(obtener, [])
 
-  async function cargarEspacios() {
-    setEstado('cargando')
-    setEspacioSeleccionado(null)
+  const [formularioAbierto, setFormularioAbierto] = useState(false)
+  const [enEdicion, setEnEdicion] = useState<Espacio | null>(null)
+  const [mensaje, setMensaje] = useState('')
+  const [errorAccion, setErrorAccion] = useState('')
+  const [eliminando, setEliminando] = useState(false)
+
+  function buscar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault()
+    setErrorFiltro('')
+    setMensaje('')
+
+    if (modo !== 'todos') {
+      if (!fecha || !horaInicio || !horaFin) {
+        setErrorFiltro('Completá la fecha y el horario para filtrar por disponibilidad.')
+        return
+      }
+
+      if (horaFin <= horaInicio) {
+        setErrorFiltro('La hora de fin debe ser posterior a la hora de inicio.')
+        return
+      }
+    }
+
+    setFiltroAplicado({ modo, fecha, horaInicio, horaFin })
+  }
+
+  function abrirFormulario(espacio: Espacio | null) {
+    setEnEdicion(espacio)
+    setFormularioAbierto(true)
+    setMensaje('')
+    setErrorAccion('')
+  }
+
+  function cerrarFormulario() {
+    setFormularioAbierto(false)
+    setEnEdicion(null)
+  }
+
+  function alGuardar(texto: string) {
+    cerrarFormulario()
+    setMensaje(texto)
+    recargar()
+  }
+
+  async function eliminar(espacio: Espacio) {
+    if (eliminando) {
+      return
+    }
+
+    if (!window.confirm(`¿Querés eliminar el espacio "${espacio.nombre}"?`)) {
+      return
+    }
+
+    setEliminando(true)
+    setMensaje('')
+    setErrorAccion('')
 
     try {
-      const datos = await getEspacios()
-      setEspacios(datos)
-      setEstado('exito')
+      await eliminarEspacio(espacio.id)
+      setMensaje('Espacio eliminado correctamente.')
+      recargar()
     } catch {
-      setEstado('error')
+      setErrorAccion(
+        'No pudimos eliminar el espacio. Si tiene reservas o disponibilidades asociadas, eliminalas primero.'
+      )
+    } finally {
+      setEliminando(false)
     }
   }
 
-  function seleccionarEspacio(espacio: Espacio) {
-    setEspacioSeleccionado(espacio)
-  }
-
   return (
-    <section aria-labelledby="titulo-espacios">
-      <h2 id="titulo-espacios">Espacios</h2>
-      <p>Consultá los espacios registrados en el sistema.</p>
-
-      <FormularioEspacio onCreado={cargarEspacios} />
-
-      <button
-        type="button"
-        onClick={cargarEspacios}
-        disabled={estado === 'cargando'}
+    <section aria-labelledby="titulo-espacios" className="flex flex-col gap-4">
+      <EncabezadoSeccion
+        id="titulo-espacios"
+        titulo="Espacios"
+        descripcion="Aulas, laboratorios y otros lugares reservables."
       >
-        {estado === 'inicial' && 'Cargar espacios'}
-        {estado === 'cargando' && 'Cargando...'}
-        {estado === 'exito' && 'Actualizar espacios'}
-        {estado === 'error' && 'Reintentar'}
-      </button>
+        {!formularioAbierto && (
+          <Boton onClick={() => abrirFormulario(null)}>Nuevo espacio</Boton>
+        )}
+      </EncabezadoSeccion>
 
-      {estado === 'cargando' && (
-        <p role="status">Cargando espacios...</p>
+      {mensaje && <Alerta tipo="exito">{mensaje}</Alerta>}
+      {errorAccion && <Alerta tipo="error">{errorAccion}</Alerta>}
+
+      {formularioAbierto && (
+        <FormularioEspacio
+          key={enEdicion?.id ?? 'nuevo'}
+          espacio={enEdicion}
+          onGuardado={alGuardar}
+          onCancelar={cerrarFormulario}
+        />
       )}
 
-      {estado === 'error' && (
-        <p role="alert">
-          No pudimos cargar los espacios. Intentá nuevamente.
-        </p>
-      )}
-
-      {estado === 'exito' && espacios.length === 0 && (
-        <p>No hay espacios registrados.</p>
-      )}
-
-      {estado === 'exito' && espacios.length > 0 && (
-        <ul>
-          {espacios.map((espacio) => (
-            <li key={espacio.id}>
-              <h3>{espacio.nombre}</h3>
-
-              <p>
-                <strong>Tipo:</strong> {espacio.tipo}
-              </p>
-
-              <p>
-                <strong>Capacidad:</strong> {espacio.capacidad} personas
-              </p>
-
-              <button
-                type="button"
-                onClick={() => seleccionarEspacio(espacio)}
-              >
-                Ver detalle de {espacio.nombre}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {espacioSeleccionado !== null && (
-        <section aria-labelledby="titulo-detalle-espacio">
-          <h3 id="titulo-detalle-espacio">Detalle del espacio</h3>
-
-          <p>
-            <strong>Nombre:</strong> {espacioSeleccionado.nombre}
-          </p>
-
-          <p>
-            <strong>Descripción:</strong> {espacioSeleccionado.descripcion}
-          </p>
-
-          <p>
-            <strong>Tipo:</strong> {espacioSeleccionado.tipo}
-          </p>
-
-          <p>
-            <strong>Capacidad:</strong>{' '}
-            {espacioSeleccionado.capacidad} personas
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setEspacioSeleccionado(null)}
+      <Tarjeta>
+        <form onSubmit={buscar} className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <Selector
+            id="espacios-modo"
+            etiqueta="Mostrar"
+            value={modo}
+            onChange={(evento) => setModo(evento.target.value as ModoDisponibilidad)}
           >
-            Cerrar detalle
-          </button>
-        </section>
-      )}
+            <option value="todos">Todos los espacios</option>
+            <option value="disponibles">Solo disponibles</option>
+            <option value="no_disponibles">Solo no disponibles</option>
+          </Selector>
+
+          {modo !== 'todos' && (
+            <>
+              <Campo
+                id="espacios-fecha"
+                etiqueta="Fecha"
+                type="date"
+                value={fecha}
+                onChange={(evento) => setFecha(evento.target.value)}
+                required
+              />
+              <Campo
+                id="espacios-hora-inicio"
+                etiqueta="Hora de inicio"
+                type="time"
+                value={horaInicio}
+                onChange={(evento) => setHoraInicio(evento.target.value)}
+                required
+              />
+              <Campo
+                id="espacios-hora-fin"
+                etiqueta="Hora de fin"
+                type="time"
+                value={horaFin}
+                onChange={(evento) => setHoraFin(evento.target.value)}
+                required
+              />
+            </>
+          )}
+
+          <div className="flex items-end">
+            <Boton type="submit" className="w-full sm:w-auto">
+              Buscar
+            </Boton>
+          </div>
+        </form>
+
+        {errorFiltro && (
+          <div className="mt-4">
+            <Alerta tipo="error">{errorFiltro}</Alerta>
+          </div>
+        )}
+      </Tarjeta>
+
+      <h3 className="text-sm font-medium text-slate-600">
+        {describirFiltro(filtroAplicado)}
+      </h3>
+
+      <Carga estado={estado} error={error} onReintentar={recargar}>
+        {espacios.length === 0 ? (
+          <p className="text-sm text-slate-600">
+            No hay espacios que coincidan con la búsqueda.
+          </p>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {espacios.map((espacio) => (
+              <li key={espacio.id}>
+                <Tarjeta className="flex h-full flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <h4 className="font-semibold">{espacio.nombre}</h4>
+                    <p className="text-sm text-slate-600">
+                      {espacio.tipo} · {espacio.capacidad} personas
+                    </p>
+                    {espacio.descripcion && (
+                      <p className="text-sm text-slate-500">{espacio.descripcion}</p>
+                    )}
+                  </div>
+
+                  <div className="mt-auto flex gap-2">
+                    <Boton
+                      variante="secundario"
+                      disabled={eliminando}
+                      onClick={() => abrirFormulario(espacio)}
+                    >
+                      Editar
+                    </Boton>
+                    <Boton
+                      variante="peligro"
+                      disabled={eliminando}
+                      onClick={() => eliminar(espacio)}
+                    >
+                      Eliminar
+                    </Boton>
+                  </div>
+                </Tarjeta>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Carga>
     </section>
   )
 }
