@@ -16,6 +16,7 @@ interface Accion {
   etiqueta: string
   variante: 'primario' | 'secundario' | 'peligro'
   exito: string
+  confirmar?: string
 }
 
 const accionesPorEstado: Record<string, Accion[]> = {
@@ -37,6 +38,7 @@ const accionesPorEstado: Record<string, Accion[]> = {
       etiqueta: 'Cancelar reserva',
       variante: 'secundario',
       exito: 'Reserva cancelada correctamente.',
+      confirmar: '¿Querés cancelar esta reserva?',
     },
   ],
   aprobada: [
@@ -45,6 +47,7 @@ const accionesPorEstado: Record<string, Accion[]> = {
       etiqueta: 'Cancelar reserva',
       variante: 'secundario',
       exito: 'Reserva cancelada correctamente.',
+      confirmar: '¿Querés cancelar esta reserva?',
     },
   ],
 }
@@ -75,6 +78,10 @@ function DetalleReserva({
 
   async function ejecutar(accion: Accion) {
     if (procesando) {
+      return
+    }
+
+    if (accion.confirmar && !window.confirm(accion.confirmar)) {
       return
     }
 
