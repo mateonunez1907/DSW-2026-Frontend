@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import type { Reserva } from '../types/reserva'
-import {
-  getReservas,
-  getReserva,
-  cambiarEstadoReserva,
-} from '../services/reserva.service'
+import { getReservas, getReserva, cambiarEstadoReserva, } from '../services/reserva.service'
 import { getEstados } from '../services/estado.service'
+import FormularioReserva from './FormularioReserva'
 
 type EstadoCarga = 'inicial' | 'cargando' | 'exito' | 'error'
 
@@ -122,6 +119,9 @@ function GestionReservas() {
   return (
     <section aria-labelledby="titulo-reservas">
       <h2 id="titulo-reservas">Reservas</h2>
+
+      <FormularioReserva onCreada={() => { limpiarMensajes() 
+        cargarReservas()}}/>
 
       <p>
         Elegí los filtros y presioná Buscar reservas.

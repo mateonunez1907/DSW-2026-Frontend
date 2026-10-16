@@ -1,4 +1,4 @@
-import type { Reserva, FiltrosReserva } from '../types/reserva'
+import type { Reserva, FiltrosReserva, NuevaReserva,} from '../types/reserva'
 
 export async function getReservas(
   filtros: FiltrosReserva
@@ -62,6 +62,27 @@ export async function cambiarEstadoReserva(
 
     throw new Error(
       contenido?.message || 'No se pudo cambiar el estado de la reserva'
+    )
+  }
+}
+
+export async function crearReserva(
+  datos: NuevaReserva
+): Promise<void> {
+  const respuesta = await fetch('/api/reservas', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(datos),
+  })
+
+  if (!respuesta.ok) {
+    const contenido: { message?: string } | null =
+      await respuesta.json().catch(() => null)
+
+    throw new Error(
+      contenido?.message || 'No se pudo crear la reserva'
     )
   }
 }
