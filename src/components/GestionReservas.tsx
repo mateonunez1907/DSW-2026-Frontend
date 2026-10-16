@@ -1,339 +1,177 @@
-import { useState } from 'react'
-import type { Reserva } from '../types/reserva'
-import { getReservas, getReserva, cambiarEstadoReserva, } from '../services/reserva.service'
+import { useCallback, useState, type FormEvent } from 'react'
+import type { Espacio } from '../types/espacio'
+import type { EstadoReserva } from '../types/estado'
+import type { FiltrosReserva, Reserva } from '../types/reserva'
+import type { Usuario } from '../types/usuario'
+import { getEspacios } from '../services/espacio.service'
 import { getEstados } from '../services/estado.service'
+import { getReservas } from '../services/reserva.service'
+import { getUsuarios } from '../services/usuario.service'
+import { useCarga } from '../hooks/useCarga'
+import { formatearFecha, recortarHora } from '../utils/horarios'
+import Alerta from './ui/Alerta'
+import Boton from './ui/Boton'
+import Campo from './ui/Campo'
+import Carga from './ui/Carga'
+import EncabezadoSeccion from './ui/EncabezadoSeccion'
+import Insignia from './ui/Insignia'
+import Selector from './ui/Selector'
+import Tarjeta from './ui/Tarjeta'
+import DetalleReserva from './DetalleReserva'
 import FormularioReserva from './FormularioReserva'
-
-type EstadoCarga = 'inicial' | 'cargando' | 'exito' | 'error'
 
 function GestionReservas() {
   const [estadoFiltro, setEstadoFiltro] = useState('')
   const [fechaFiltro, setFechaFiltro] = useState('')
+  const [filtros, setFiltros] = useState<FiltrosReserva>({})
 
-  const [reservas, setReservas] = useState<Reserva[]>([])
-  const [estadoLista, setEstadoLista] = useState<EstadoCarga>('inicial')
+  const [formularioAbierto, setFormularioAbierto] = useState(false)
+  const [seleccionada, setSeleccionada] = useState<number | null>(null)
+  const [mensaje, setMensaje] = useState('')
 
-  const [reservaSeleccionada, setReservaSeleccionada] =
-    useState<Reserva | null>(null)
+  const obtener = useCallback(() => getReservas(filtros), [filtros])
+  const {
+    datos: reservas,
+    estado,
+    error,
+    recargar,
+  } = useCarga<Reserva[]>(obtener, [])
 
-  const [estadoDetalle, setEstadoDetalle] =
-    useState<EstadoCarga>('inicial')
+  const obtenerUsuarios = useCallback(() => getUsuarios(), [])
+  const { datos: usuarios } = useCarga<Usuario[]>(obtenerUsuarios, [])
 
-  const [guardando, setGuardando] = useState(false)
-  const [mensajeExito, setMensajeExito] = useState('')
-  const [mensajeError, setMensajeError] = useState('')
+  const obtenerEspacios = useCallback(() => getEspacios(), [])
+  const { datos: espacios } = useCarga<Espacio[]>(obtenerEspacios, [])
 
-  const consultando =
-    estadoLista === 'cargando' ||
-    estadoDetalle === 'cargando' ||
-    guardando
+  const obtenerEstados = useCallback(() => getEstados(), [])
+  const { datos: estados } = useCarga<EstadoReserva[]>(obtenerEstados, [])
 
-  function limpiarMensajes() {
-    setMensajeExito('')
-    setMensajeError('')
+  function buscar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault()
+    setMensaje('')
+    setSeleccionada(null)
+    setFiltros({ estado: estadoFiltro, fecha: fechaFiltro })
   }
 
-  function limpiarResultados() {
-    setReservas([])
-    setEstadoLista('inicial')
-    setReservaSeleccionada(null)
-    setEstadoDetalle('inicial')
-    limpiarMensajes()
+  function alCrear(texto: string) {
+    setFormularioAbierto(false)
+    setMensaje(texto)
+    recargar()
   }
 
-  async function cargarReservas() {
-    setEstadoLista('cargando')
-    setReservaSeleccionada(null)
-    setEstadoDetalle('inicial')
-
-    try {
-      const datos = await getReservas({
-        estado: estadoFiltro,
-        fecha: fechaFiltro,
-      })
-
-      setReservas(datos)
-      setEstadoLista('exito')
-    } catch {
-      setEstadoLista('error')
-    }
-  }
-
-  async function verDetalle(id: number) {
-    limpiarMensajes()
-    setReservaSeleccionada(null)
-    setEstadoDetalle('cargando')
-
-    try {
-      const datos = await getReserva(id)
-
-      setReservaSeleccionada(datos)
-      setEstadoDetalle('exito')
-    } catch {
-      setEstadoDetalle('error')
-    }
-  }
-
-  async function cambiarEstado(nombre: 'aprobada' | 'rechazada') {
-    if (reservaSeleccionada === null || consultando) {
-      return
-    }
-
-    limpiarMensajes()
-    setGuardando(true)
-
-    try {
-      const estados = await getEstados()
-
-      const nuevoEstado = estados.find(
-        (estado) => estado.nombre === nombre
-      )
-
-      if (!nuevoEstado) {
-        throw new Error('No se encontró el estado solicitado')
-      }
-
-      await cambiarEstadoReserva(
-        reservaSeleccionada.id,
-        nuevoEstado.id
-      )
-
-      setMensajeExito(
-        nombre === 'aprobada'
-          ? 'Reserva aprobada correctamente.'
-          : 'Reserva rechazada correctamente.'
-      )
-
-      await cargarReservas()
-    } catch (error) {
-      setMensajeError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo cambiar el estado de la reserva'
-      )
-    } finally {
-      setGuardando(false)
-    }
+  function alCambiarEstado(texto: string) {
+    setMensaje(texto)
+    recargar()
   }
 
   return (
-    <section aria-labelledby="titulo-reservas">
-      <h2 id="titulo-reservas">Reservas</h2>
-
-      <FormularioReserva onCreada={() => { limpiarMensajes() 
-        cargarReservas()}}/>
-
-      <p>
-        Elegí los filtros y presioná Buscar reservas.
-        Podés dejar ambos vacíos para consultar todas.
-      </p>
-
-      <form
-        onSubmit={(evento) => {
-          evento.preventDefault()
-          limpiarMensajes()
-          cargarReservas()
-        }}
+    <section aria-labelledby="titulo-reservas" className="flex flex-col gap-4">
+      <EncabezadoSeccion
+        id="titulo-reservas"
+        titulo="Reservas"
+        descripcion="Solicitudes de uso de espacios y su estado."
       >
-        <div>
-          <label htmlFor="filtro-estado-reserva">Estado</label>
-
-          <select
-            id="filtro-estado-reserva"
-            name="estado"
-            value={estadoFiltro}
-            disabled={consultando}
-            onChange={(evento) => {
-              setEstadoFiltro(evento.target.value)
-              limpiarResultados()
+        {!formularioAbierto && (
+          <Boton
+            onClick={() => {
+              setMensaje('')
+              setFormularioAbierto(true)
             }}
+          >
+            Nueva reserva
+          </Boton>
+        )}
+      </EncabezadoSeccion>
+
+      {mensaje && <Alerta tipo="exito">{mensaje}</Alerta>}
+
+      {formularioAbierto && (
+        <FormularioReserva
+          usuarios={usuarios}
+          espacios={espacios}
+          onCreada={alCrear}
+          onCancelar={() => setFormularioAbierto(false)}
+        />
+      )}
+
+      <Tarjeta>
+        <form onSubmit={buscar} className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+          <Selector
+            id="filtro-estado"
+            etiqueta="Estado"
+            value={estadoFiltro}
+            onChange={(evento) => setEstadoFiltro(evento.target.value)}
           >
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
             <option value="aprobada">Aprobada</option>
             <option value="rechazada">Rechazada</option>
             <option value="cancelada">Cancelada</option>
-          </select>
-        </div>
+          </Selector>
 
-        <div>
-          <label htmlFor="filtro-fecha-reserva">Fecha</label>
-
-          <input
-            id="filtro-fecha-reserva"
-            name="fecha"
+          <Campo
+            id="filtro-fecha"
+            etiqueta="Fecha"
             type="date"
             value={fechaFiltro}
-            disabled={consultando}
-            onChange={(evento) => {
-              setFechaFiltro(evento.target.value)
-              limpiarResultados()
-            }}
+            onChange={(evento) => setFechaFiltro(evento.target.value)}
           />
-        </div>
 
-        <button type="submit" disabled={consultando}>
-          {estadoLista === 'cargando'
-            ? 'Buscando...'
-            : 'Buscar reservas'}
-        </button>
-      </form>
+          <div className="flex items-end">
+            <Boton type="submit" className="w-full sm:w-auto">
+              Buscar reservas
+            </Boton>
+          </div>
+        </form>
+      </Tarjeta>
 
-      {guardando && (
-        <p role="status">Procesando la solicitud...</p>
-      )}
-
-      {mensajeExito !== '' && (
-        <p role="status">{mensajeExito}</p>
-      )}
-
-      {mensajeError !== '' && (
-        <p role="alert">{mensajeError}</p>
-      )}
-
-      {estadoLista === 'cargando' && (
-        <p role="status">Buscando reservas...</p>
-      )}
-
-      {estadoLista === 'error' && (
-        <p role="alert">
-          No pudimos cargar el listado de reservas.
-          Presioná Buscar reservas para reintentar.
-        </p>
-      )}
-
-      {estadoLista === 'exito' && reservas.length === 0 && (
-        <p>No hay reservas que coincidan con los filtros.</p>
-      )}
-
-      {estadoLista === 'exito' && reservas.length > 0 && (
-        <ul>
-          {reservas.map((reserva) => (
-            <li key={reserva.id}>
-              <h3>{reserva.espacio.nombre}</h3>
-
-              <p>
-                Usuario: {reserva.usuario.nombre}
-                {' '}
-                {reserva.usuario.apellido}
-              </p>
-
-              <p>Fecha: {reserva.fecha}</p>
-
-              <p>
-                Horario: {reserva.horaInicio} a {reserva.horaFin}
-              </p>
-
-              <p>Estado: {reserva.estado.nombre}</p>
-
-              <button
-                type="button"
-                disabled={consultando}
-                onClick={() => verDetalle(reserva.id)}
-              >
-                Ver detalle
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {estadoDetalle === 'cargando' && (
-        <p role="status">Cargando detalle de la reserva...</p>
-      )}
-
-      {estadoDetalle === 'error' && (
-        <p role="alert">
-          No pudimos cargar el detalle.
-          Presioná Ver detalle nuevamente para reintentar.
-        </p>
-      )}
-
-      {reservaSeleccionada !== null && (
-        <section aria-labelledby="titulo-detalle-reserva">
-          <h3 id="titulo-detalle-reserva">Detalle de la reserva</h3>
-
-          <p>
-            <strong>Fecha:</strong> {reservaSeleccionada.fecha}
+      <Carga estado={estado} error={error} onReintentar={recargar}>
+        {reservas.length === 0 ? (
+          <p className="text-sm text-slate-600">
+            No hay reservas que coincidan con los filtros.
           </p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {reservas.map((reserva) => (
+              <li key={reserva.id} className="flex flex-col gap-3">
+                <Tarjeta className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold">{reserva.espacio.nombre}</h3>
+                      <Insignia texto={reserva.estado.nombre} />
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      {formatearFecha(reserva.fecha)} · {recortarHora(reserva.horaInicio)} a{' '}
+                      {recortarHora(reserva.horaFin)}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {reserva.usuario.nombre} {reserva.usuario.apellido}
+                    </p>
+                  </div>
 
-          <p>
-            <strong>Horario:</strong> {reservaSeleccionada.horaInicio}
-            {' a '}
-            {reservaSeleccionada.horaFin}
-          </p>
+                  <Boton
+                    variante="secundario"
+                    onClick={() =>
+                      setSeleccionada(seleccionada === reserva.id ? null : reserva.id)
+                    }
+                  >
+                    {seleccionada === reserva.id ? 'Ocultar detalle' : 'Ver detalle'}
+                  </Boton>
+                </Tarjeta>
 
-          <p>
-            <strong>Estado:</strong> {reservaSeleccionada.estado.nombre}
-          </p>
-
-          <h4>Usuario</h4>
-
-          <p>
-            {reservaSeleccionada.usuario.nombre}
-            {' '}
-            {reservaSeleccionada.usuario.apellido}
-          </p>
-
-          <p>
-            <strong>Email:</strong> {reservaSeleccionada.usuario.email}
-          </p>
-
-          <h4>Espacio</h4>
-
-          <p>
-            <strong>Nombre:</strong> {reservaSeleccionada.espacio.nombre}
-          </p>
-
-          <p>
-            <strong>Descripción:</strong>{' '}
-            {reservaSeleccionada.espacio.descripcion || 'Sin descripción'}
-          </p>
-
-          <p>
-            <strong>Tipo:</strong> {reservaSeleccionada.espacio.tipo}
-          </p>
-
-          <p>
-            <strong>Capacidad:</strong>{' '}
-            {reservaSeleccionada.espacio.capacidad} personas
-          </p>
-
-          {reservaSeleccionada.estado.nombre === 'pendiente' && (
-            <div>
-              <h4>Resolver solicitud</h4>
-
-              <button
-                type="button"
-                disabled={consultando}
-                onClick={() => cambiarEstado('aprobada')}
-              >
-                Aprobar reserva
-              </button>
-
-              <button
-                type="button"
-                disabled={consultando}
-                onClick={() => cambiarEstado('rechazada')}
-              >
-                Rechazar reserva
-              </button>
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled={consultando}
-            onClick={() => {
-              setReservaSeleccionada(null)
-              setEstadoDetalle('inicial')
-              limpiarMensajes()
-            }}
-          >
-            Cerrar detalle
-          </button>
-        </section>
-      )}
+                {seleccionada === reserva.id && (
+                  <DetalleReserva
+                    id={reserva.id}
+                    estados={estados}
+                    onCerrar={() => setSeleccionada(null)}
+                    onEstadoCambiado={alCambiarEstado}
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Carga>
     </section>
   )
 }

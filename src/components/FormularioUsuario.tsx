@@ -1,28 +1,35 @@
-import { useState } from 'react'
-import type {Usuario, NuevoUsuario } from '../types/usuario.ts'
-import { crearUsuario, actualizarUsuario } from '../services/usuario.service.ts'
+import { useState, type FormEvent } from 'react'
+import type { NuevoUsuario, Usuario } from '../types/usuario'
+import { actualizarUsuario, crearUsuario } from '../services/usuario.service'
+import { mensajeDeError } from '../services/api'
+import Alerta from './ui/Alerta'
+import Boton from './ui/Boton'
+import Campo from './ui/Campo'
+import Tarjeta from './ui/Tarjeta'
 
 interface FormularioUsuarioProps {
   usuario: Usuario | null
-  onGuardado: () => void
+  onGuardado: (mensaje: string) => void
   onCancelar: () => void
 }
 
-function FormularioUsuario({usuario, onGuardado, onCancelar}: FormularioUsuarioProps){
-  const [nombre, setNombre] = useState(usuario ? usuario.nombre : '')
-  const [apellido, setApellido] = useState(usuario ? usuario.apellido : '')
-  const [email, setEmail] = useState(usuario ? usuario.email : '')
+function FormularioUsuario({
+  usuario,
+  onGuardado,
+  onCancelar,
+}: FormularioUsuarioProps) {
+  const [nombre, setNombre] = useState(usuario?.nombre ?? '')
+  const [apellido, setApellido] = useState(usuario?.apellido ?? '')
+  const [email, setEmail] = useState(usuario?.email ?? '')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
-  const [mensaje, setMensaje] = useState('')
 
-  async function guardarUsuario(){
-    if(guardando) {
-      return 
+  async function guardar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault()
+
+    if (guardando) {
+      return
     }
-
-    setError('')
-    setMensaje('')
 
     const datos: NuevoUsuario = {
       nombre: nombre.trim(),
@@ -30,105 +37,81 @@ function FormularioUsuario({usuario, onGuardado, onCancelar}: FormularioUsuarioP
       email: email.trim(),
     }
 
-    if ( !datos.nombre || !datos.apellido || !datos.email ){
-      setError('Complete todos los campos.')
-      return
-    }
-
+    setError('')
     setGuardando(true)
 
     try {
       if (usuario) {
         await actualizarUsuario(usuario.id, datos)
-        setMensaje('Usuario actualizado correctamente.')
+        onGuardado('Usuario actualizado correctamente.')
       } else {
         await crearUsuario(datos)
-        setMensaje('Usuario creado correctamente.')
+        onGuardado('Usuario creado correctamente.')
       }
-
-      setNombre('')
-      setApellido('')
-      setEmail('')
-
-      onGuardado()
-    } catch {
-      setError('No pudimos guardar el usuario. Intentá nuevamente.')
-    } finally {
+    } catch (fallo) {
+      setError(
+        mensajeDeError(fallo, 'No pudimos guardar el usuario. Intentá nuevamente.')
+      )
       setGuardando(false)
     }
   }
 
   return (
-    <section aria-labelledby='titulo-formulario-usuario'>
-      <h2 id="titulo-formulario-usuario">
-        {usuario ? 'Editar usuario' : 'Crear usuario'}
-      </h2>
+    <Tarjeta>
+      <h3 className="mb-4 text-lg font-semibold">
+        {usuario ? 'Editar usuario' : 'Nuevo usuario'}
+      </h3>
 
-      <form 
-        onSubmit={(evento) =>{
-          evento.preventDefault()
-          guardarUsuario()
-        }}
-      >
-      
-        <fieldset disabled ={guardando}> 
-          <legend>Datos del usuario</legend>
+      <form onSubmit={guardar} className="grid gap-4 sm:grid-cols-2">
+        <Campo
+          id="usuario-nombre"
+          etiqueta="Nombre"
+          value={nombre}
+          onChange={(evento) => setNombre(evento.target.value)}
+          autoComplete="given-name"
+          required
+          disabled={guardando}
+        />
 
-          <div>
-            <label htmlFor='nombre'>Nombre</label>
-            <input
-              id="nombre"
-              type="text"
-              value={nombre}
-              onChange={(evento) => setNombre(evento.target.value)}
-              autoComplete = "given-name"
-              required
-              />
+        <Campo
+          id="usuario-apellido"
+          etiqueta="Apellido"
+          value={apellido}
+          onChange={(evento) => setApellido(evento.target.value)}
+          autoComplete="family-name"
+          required
+          disabled={guardando}
+        />
+
+        <div className="sm:col-span-2">
+          <Campo
+            id="usuario-email"
+            etiqueta="Email"
+            type="email"
+            value={email}
+            onChange={(evento) => setEmail(evento.target.value)}
+            autoComplete="email"
+            required
+            disabled={guardando}
+          />
+        </div>
+
+        {error && (
+          <div className="sm:col-span-2">
+            <Alerta tipo="error">{error}</Alerta>
           </div>
+        )}
 
-          <div>
-            <label htmlFor='apellido'>Apellido</label>
-            <input 
-              id = "apellido"
-              type = "text"
-              value = {apellido}
-              onChange={(evento) => setApellido(evento.target.value)}
-              autoComplete='family-name'
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor='email'>Email</label>
-            <input 
-              id = "email"
-              type = "email"
-              value = {email}
-              onChange={(evento) => setEmail(evento.target.value)}
-              autoComplete="email"
-              required
-            />
-          </div>
-
-          <button type="submit">
-            {guardando
-              ? 'Guardando…'
-              : usuario
-                ? 'Guardar cambios'
-                : 'Crear usuario'}
-          </button>
-
-          {usuario !== null && (
-            <button type="button" onClick={onCancelar}>
-              Cancelar edición
-            </button>
-          )}
-        </fieldset>
+        <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:justify-end">
+          <Boton variante="secundario" onClick={onCancelar} disabled={guardando}>
+            Cancelar
+          </Boton>
+          <Boton type="submit" disabled={guardando}>
+            {guardando ? 'Guardando…' : usuario ? 'Guardar cambios' : 'Crear usuario'}
+          </Boton>
+        </div>
       </form>
-      {error && <p role="alert">{error}</p>}
-      {mensaje && <p role="status">{mensaje}</p>}
-
-    </section>
+    </Tarjeta>
   )
 }
 

@@ -1,200 +1,63 @@
 import { useState } from 'react'
-import type { Usuario } from './types/usuario'
-import { getUsuario, eliminarUsuario } from './services/usuario.service'
-import ListaUsuarios from './components/ListaUsuarios'
-import FormularioUsuario from './components/FormularioUsuario'
-import GestionEspacios from './components/GestionEspacios.tsx'
+import GestionDisponibilidades from './components/GestionDisponibilidades'
+import GestionEspacios from './components/GestionEspacios'
 import GestionReservas from './components/GestionReservas'
-import './App.css'
+import GestionUsuarios from './components/GestionUsuarios'
 
-type EstadoCarga = 'inicial' | 'cargando' | 'error' | 'exito'
+const secciones = [
+  { id: 'reservas', titulo: 'Reservas' },
+  { id: 'espacios', titulo: 'Espacios' },
+  { id: 'disponibilidades', titulo: 'Disponibilidades' },
+  { id: 'usuarios', titulo: 'Usuarios' },
+] as const
+
+type SeccionId = (typeof secciones)[number]['id']
 
 function App() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [estado, setEstado] = useState<EstadoCarga>('inicial')
-
-  const [usuarioSeleccionado, setUsuarioSeleccionado] =
-    useState<Usuario | null>(null)
-
-  const [usuarioEnEdicion, setUsuarioEnEdicion] =
-    useState<Usuario | null>(null)
-
-  const [eliminando, setEliminando] = useState(false)
-  const [errorEliminacion, setErrorEliminacion] = useState('')
-  const [mensajeEliminacion, setMensajeEliminacion] = useState('')
-  
-  async function cargarUsuarios() {
-    setEstado('cargando')
-    setUsuarioSeleccionado(null)
-
-    try {
-      const datos = await getUsuario()
-      setUsuarios(datos)
-      setEstado('exito')
-    } catch {
-      setEstado('error')
-    }
-  }
-
-  function seleccionarUsuario(usuario: Usuario) {
-    if(eliminando){
-      return
-    }
-    
-    setUsuarioSeleccionado(usuario)
-    setErrorEliminacion('')
-    setMensajeEliminacion('')
-  }
-
-  function finalizarGuardado() {
-    setUsuarioEnEdicion(null)
-    setErrorEliminacion('')
-    setMensajeEliminacion('')
-    cargarUsuarios()
-  }
-
-  async function eliminarSeleccionado(){
-    if(usuarioSeleccionado === null || eliminando){
-      return
-    }
-
-    const usuario = usuarioSeleccionado
-
-    const confirmado = window.confirm(
-      `Querés eliminar ${usuario.nombre} ${usuario.apellido}?`
-    )
-
-    if (!confirmado){
-      return
-    }
-
-    setEliminando(true)
-    setErrorEliminacion('')
-    setMensajeEliminacion('')
-
-    try{
-      await eliminarUsuario(usuario.id)
-
-      setUsuarioEnEdicion(null)
-      setMensajeEliminacion('Usuario eliminado correctamente.')
-
-      await cargarUsuarios()
-    } catch {
-      setErrorEliminacion(
-        'No pudimos eliminar el usuario, intente nuevamente'
-      )
-    } finally{
-      setEliminando(false)
-    }
-  }
+  const [seccionActiva, setSeccionActiva] = useState<SeccionId>('reservas')
 
   return (
-    <main className="app">
-      <h1>Sistema de reservas de espacios</h1>
+    <div className="min-h-screen">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <h1 className="py-4 text-xl font-bold text-indigo-700 sm:text-2xl md:text-3xl">
+            Reserva de espacios
+          </h1>
 
-      <FormularioUsuario
-        key={usuarioEnEdicion ? usuarioEnEdicion.id : 'nuevo'}
-        usuario={usuarioEnEdicion}
-        onGuardado={finalizarGuardado}
-        onCancelar={() => setUsuarioEnEdicion(null)}
-      />
+          <nav aria-label="Secciones">
+            <ul className="-mb-px flex gap-1 overflow-x-auto">
+              {secciones.map((seccion) => {
+                const activa = seccion.id === seccionActiva
 
-      <section aria-labelledby="titulo-usuarios">
-        <h2 id="titulo-usuarios">Usuarios</h2>
-        <p>Consultá los usuarios registrados en el sistema.</p>
+                return (
+                  <li key={seccion.id}>
+                    <button
+                      type="button"
+                      aria-current={activa ? 'page' : undefined}
+                      onClick={() => setSeccionActiva(seccion.id)}
+                      className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition sm:px-4 ${
+                        activa
+                          ? 'border-indigo-600 text-indigo-700'
+                          : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-800'
+                      }`}
+                    >
+                      {seccion.titulo}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </nav>
+        </div>
+      </header>
 
-        <button
-          type="button"
-          onClick={cargarUsuarios}
-          disabled={estado === 'cargando' || eliminando}
-        >
-          {estado === 'inicial' && 'Cargar usuarios'}
-          {estado === 'cargando' && 'Cargando…'}
-          {estado === 'exito' && 'Actualizar listado'}
-          {estado === 'error' && 'Reintentar'}
-        </button>
-
-        {estado === 'cargando' && (
-          <p role="status">Cargando usuarios…</p>
-        )}
-
-        {estado === 'error' && (
-          <p role="alert">
-            No pudimos cargar los usuarios. Intentá nuevamente.
-          </p>
-        )}
-
-        {errorEliminacion && (
-          <p role="alert">{errorEliminacion}</p>
-        )}
-
-        {mensajeEliminacion && (
-          <p role="status">{mensajeEliminacion}</p>
-        )}
-
-        {estado === 'exito' && usuarios.length === 0 && (
-          <p>No hay usuarios registrados.</p>
-        )}
-
-        {estado === 'exito' && usuarios.length > 0 && (
-          <ListaUsuarios
-            usuarios={usuarios}
-            onSeleccionar={seleccionarUsuario}
-          />
-        )}
-
-        {usuarioSeleccionado !== null && (
-          <section aria-labelledby="titulo-detalle">
-            <h3 id="titulo-detalle">Detalle del usuario</h3>
-
-            <p>
-              <strong>Nombre:</strong> {usuarioSeleccionado.nombre}
-            </p>
-
-            <p>
-              <strong>Apellido:</strong> {usuarioSeleccionado.apellido}
-            </p>
-
-            <p>
-              <strong>Email:</strong> {usuarioSeleccionado.email}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setUsuarioEnEdicion(usuarioSeleccionado)}
-              disabled = {eliminando}
-            >
-              Editar usuario
-            </button>
-
-            <button
-              type="button"
-              onClick = {eliminarSeleccionado}
-              disabled = {eliminando || usuarioEnEdicion !== null}
-            >
-              {eliminando ? 'Eliminando' : 'Eliminar usuario'}
-            </button>
-
-            {usuarioEnEdicion !== null &&(
-              <p>
-                Guardá o cancelá la edición antes de eliminar.
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setUsuarioSeleccionado(null)}
-              disabled={eliminando}
-            >
-              Cerrar detalle
-            </button>
-          </section>
-        )}
-      </section>
-
-      <GestionEspacios />
-      <GestionReservas />
-    </main>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+        {seccionActiva === 'reservas' && <GestionReservas />}
+        {seccionActiva === 'espacios' && <GestionEspacios />}
+        {seccionActiva === 'disponibilidades' && <GestionDisponibilidades />}
+        {seccionActiva === 'usuarios' && <GestionUsuarios />}
+      </main>
+    </div>
   )
 }
 

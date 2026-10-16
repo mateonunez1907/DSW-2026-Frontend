@@ -1,13 +1,6 @@
 import type { EstadoReserva } from '../types/estado'
+import { solicitar } from './api'
 
-export async function getEstados(): Promise<EstadoReserva[]> {
-  const respuesta = await fetch('/api/estados')
-
-  if (!respuesta.ok) {
-    throw new Error('No se pudieron consultar los estados')
-  }
-
-  const contenido: { data: EstadoReserva[] } = await respuesta.json()
-
-  return contenido.data
+export function getEstados(): Promise<EstadoReserva[]> {
+  return solicitar<EstadoReserva[]>('/api/estados')
 }

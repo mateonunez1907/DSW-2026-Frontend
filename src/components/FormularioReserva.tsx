@@ -1,70 +1,43 @@
-import { useState } from 'react'
-import type { Usuario } from '../types/usuario'
+import { useState, type FormEvent } from 'react'
 import type { Espacio } from '../types/espacio'
 import type { NuevaReserva } from '../types/reserva'
-import { getUsuario } from '../services/usuario.service'
-import { getEspacios } from '../services/espacio.service'
+import type { Usuario } from '../types/usuario'
 import { crearReserva } from '../services/reserva.service'
+import { mensajeDeError } from '../services/api'
+import { aHoraCompleta } from '../utils/horarios'
+import Alerta from './ui/Alerta'
+import Boton from './ui/Boton'
+import Campo from './ui/Campo'
+import Selector from './ui/Selector'
+import Tarjeta from './ui/Tarjeta'
 
 interface FormularioReservaProps {
-  onCreada: () => void
+  usuarios: Usuario[]
+  espacios: Espacio[]
+  onCreada: (mensaje: string) => void
+  onCancelar: () => void
 }
 
-type EstadoCarga = 'inicial' | 'cargando' | 'exito' | 'error'
-
-function FormularioReserva({ onCreada }: FormularioReservaProps) {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [espacios, setEspacios] = useState<Espacio[]>([])
-  const [estadoOpciones, setEstadoOpciones] =
-    useState<EstadoCarga>('inicial')
-
+function FormularioReserva({
+  usuarios,
+  espacios,
+  onCreada,
+  onCancelar,
+}: FormularioReservaProps) {
   const [usuarioId, setUsuarioId] = useState('')
   const [espacioId, setEspacioId] = useState('')
   const [fecha, setFecha] = useState('')
   const [horaInicio, setHoraInicio] = useState('')
   const [horaFin, setHoraFin] = useState('')
-
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
-  const [mensaje, setMensaje] = useState('')
 
   const hayOpciones = usuarios.length > 0 && espacios.length > 0
 
-  async function cargarOpciones() {
-    setEstadoOpciones('cargando')
-    setError('')
-    setMensaje('')
+  async function guardar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault()
 
-    try {
-      const datosUsuarios = await getUsuario()
-      const datosEspacios = await getEspacios()
-
-      setUsuarios(datosUsuarios)
-      setEspacios(datosEspacios)
-      setUsuarioId('')
-      setEspacioId('')
-      setEstadoOpciones('exito')
-    } catch {
-      setEstadoOpciones('error')
-    }
-  }
-
-  async function guardarReserva() {
     if (guardando) {
-      return
-    }
-
-    setError('')
-    setMensaje('')
-
-    if (
-      !usuarioId ||
-      !espacioId ||
-      !fecha ||
-      !horaInicio ||
-      !horaFin
-    ) {
-      setError('Completá todos los campos.')
       return
     }
 
@@ -77,157 +50,117 @@ function FormularioReserva({ onCreada }: FormularioReservaProps) {
       usuario: Number(usuarioId),
       espacio: Number(espacioId),
       fecha,
-      horaInicio: `${horaInicio}:00`,
-      horaFin: `${horaFin}:00`,
+      horaInicio: aHoraCompleta(horaInicio),
+      horaFin: aHoraCompleta(horaFin),
     }
 
+    setError('')
     setGuardando(true)
 
     try {
       await crearReserva(datos)
-
-      setUsuarioId('')
-      setEspacioId('')
-      setFecha('')
-      setHoraInicio('')
-      setHoraFin('')
-
-      setMensaje('Reserva creada. Quedó pendiente de aprobación.')
-      onCreada()
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo crear la reserva'
-      )
-    } finally {
+      onCreada('Reserva creada. Quedó pendiente de aprobación.')
+    } catch (fallo) {
+      setError(mensajeDeError(fallo, 'No pudimos crear la reserva. Intentá nuevamente.'))
       setGuardando(false)
     }
   }
 
   return (
-    <section aria-labelledby="titulo-crear-reserva">
-      <h3 id="titulo-crear-reserva">Crear reserva</h3>
+    <Tarjeta>
+      <h3 className="mb-4 text-lg font-semibold">Nueva reserva</h3>
 
-      <button
-        type="button"
-        onClick={cargarOpciones}
-        disabled={estadoOpciones === 'cargando' || guardando}
-      >
-        {estadoOpciones === 'inicial' && 'Nueva reserva'}
-        {estadoOpciones === 'cargando' && 'Cargando opciones...'}
-        {estadoOpciones === 'exito' && 'Actualizar usuarios y espacios'}
-        {estadoOpciones === 'error' && 'Reintentar carga'}
-      </button>
+      {!hayOpciones ? (
+        <div className="flex flex-col items-start gap-3">
+          <Alerta tipo="info">
+            Para reservar tiene que haber al menos un usuario y un espacio registrados.
+          </Alerta>
+          <Boton variante="secundario" onClick={onCancelar}>
+            Cerrar
+          </Boton>
+        </div>
+      ) : (
+        <form onSubmit={guardar} className="grid gap-4 sm:grid-cols-2">
+          <Selector
+            id="reserva-usuario"
+            etiqueta="Usuario"
+            value={usuarioId}
+            onChange={(evento) => setUsuarioId(evento.target.value)}
+            required
+            disabled={guardando}
+          >
+            <option value="">Seleccioná un usuario</option>
+            {usuarios.map((usuario) => (
+              <option key={usuario.id} value={usuario.id}>
+                {usuario.nombre} {usuario.apellido}
+              </option>
+            ))}
+          </Selector>
 
-      {estadoOpciones === 'cargando' && (
-        <p role="status">Cargando usuarios y espacios...</p>
-      )}
+          <Selector
+            id="reserva-espacio"
+            etiqueta="Espacio"
+            value={espacioId}
+            onChange={(evento) => setEspacioId(evento.target.value)}
+            required
+            disabled={guardando}
+          >
+            <option value="">Seleccioná un espacio</option>
+            {espacios.map((espacio) => (
+              <option key={espacio.id} value={espacio.id}>
+                {espacio.nombre}
+              </option>
+            ))}
+          </Selector>
 
-      {estadoOpciones === 'error' && (
-        <p role="alert">
-          No pudimos cargar los usuarios y espacios. Intentá nuevamente.
-        </p>
-      )}
+          <Campo
+            id="reserva-fecha"
+            etiqueta="Fecha"
+            type="date"
+            value={fecha}
+            onChange={(evento) => setFecha(evento.target.value)}
+            required
+            disabled={guardando}
+          />
 
-      {estadoOpciones === 'exito' && !hayOpciones && (
-        <p>
-          Para reservar debe haber al menos un usuario y un espacio
-          registrados.
-        </p>
-      )}
+          <div className="grid grid-cols-2 gap-4">
+            <Campo
+              id="reserva-hora-inicio"
+              etiqueta="Desde"
+              type="time"
+              value={horaInicio}
+              onChange={(evento) => setHoraInicio(evento.target.value)}
+              required
+              disabled={guardando}
+            />
+            <Campo
+              id="reserva-hora-fin"
+              etiqueta="Hasta"
+              type="time"
+              value={horaFin}
+              onChange={(evento) => setHoraFin(evento.target.value)}
+              required
+              disabled={guardando}
+            />
+          </div>
 
-      {estadoOpciones === 'exito' && hayOpciones && (
-        <form
-          onSubmit={(evento) => {
-            evento.preventDefault()
-            guardarReserva()
-          }}
-        >
-          <fieldset disabled={guardando}>
-            <legend>Datos de la reserva</legend>
-
-            <div>
-              <label htmlFor="reserva-usuario">Usuario</label>
-              <select
-                id="reserva-usuario"
-                value={usuarioId}
-                onChange={(evento) => setUsuarioId(evento.target.value)}
-                required
-              >
-                <option value="">Seleccioná un usuario</option>
-
-                {usuarios.map((usuario) => (
-                  <option key={usuario.id} value={usuario.id}>
-                    {usuario.nombre} {usuario.apellido} — {usuario.email}
-                  </option>
-                ))}
-              </select>
+          {error && (
+            <div className="sm:col-span-2">
+              <Alerta tipo="error">{error}</Alerta>
             </div>
+          )}
 
-            <div>
-              <label htmlFor="reserva-espacio">Espacio</label>
-              <select
-                id="reserva-espacio"
-                value={espacioId}
-                onChange={(evento) => setEspacioId(evento.target.value)}
-                required
-              >
-                <option value="">Seleccioná un espacio</option>
-
-                {espacios.map((espacio) => (
-                  <option key={espacio.id} value={espacio.id}>
-                    {espacio.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="reserva-fecha">Fecha</label>
-              <input
-                id="reserva-fecha"
-                type="date"
-                value={fecha}
-                onChange={(evento) => setFecha(evento.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reserva-hora-inicio">Hora de inicio</label>
-              <input
-                id="reserva-hora-inicio"
-                type="time"
-                step={60}
-                value={horaInicio}
-                onChange={(evento) => setHoraInicio(evento.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reserva-hora-fin">Hora de finalización</label>
-              <input
-                id="reserva-hora-fin"
-                type="time"
-                step={60}
-                value={horaFin}
-                onChange={(evento) => setHoraFin(evento.target.value)}
-                required
-              />
-            </div>
-
-            <button type="submit">
-              {guardando ? 'Guardando...' : 'Crear reserva'}
-            </button>
-          </fieldset>
+          <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:justify-end">
+            <Boton variante="secundario" onClick={onCancelar} disabled={guardando}>
+              Cancelar
+            </Boton>
+            <Boton type="submit" disabled={guardando}>
+              {guardando ? 'Guardando…' : 'Crear reserva'}
+            </Boton>
+          </div>
         </form>
       )}
-
-      {error && <p role="alert">{error}</p>}
-      {mensaje && <p role="status">{mensaje}</p>}
-    </section>
+    </Tarjeta>
   )
 }
 
