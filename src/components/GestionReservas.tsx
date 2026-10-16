@@ -74,9 +74,21 @@ function GestionReservas() {
     }
   }
 
-  async function cambiarEstado(nombre: 'aprobada' | 'rechazada') {
+  async function cambiarEstado(
+    nombre: 'aprobada' | 'rechazada' | 'cancelada'
+  ) {
     if (reservaSeleccionada === null || consultando) {
       return
+    }
+
+    if (nombre === 'cancelada') {
+      const confirmado = window.confirm(
+        '¿Querés cancelar esta reserva?'
+      )
+
+      if (!confirmado) {
+        return
+      }
     }
 
     limpiarMensajes()
@@ -98,11 +110,7 @@ function GestionReservas() {
         nuevoEstado.id
       )
 
-      setMensajeExito(
-        nombre === 'aprobada'
-          ? 'Reserva aprobada correctamente.'
-          : 'Reserva rechazada correctamente.'
-      )
+      setMensajeExito(`Reserva ${nombre} correctamente.`)
 
       await cargarReservas()
     } catch (error) {
@@ -319,6 +327,19 @@ function GestionReservas() {
                 Rechazar reserva
               </button>
             </div>
+          )}
+
+          {(
+            reservaSeleccionada.estado.nombre === 'pendiente' ||
+            reservaSeleccionada.estado.nombre === 'aprobada'
+          ) && (
+            <button
+              type="button"
+              disabled={consultando}
+              onClick={() => cambiarEstado('cancelada')}
+            >
+              Cancelar reserva
+            </button>
           )}
 
           <button
