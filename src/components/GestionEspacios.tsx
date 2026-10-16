@@ -15,6 +15,7 @@ import EncabezadoSeccion from './ui/EncabezadoSeccion'
 import Selector from './ui/Selector'
 import Tarjeta from './ui/Tarjeta'
 import FormularioEspacio from './FormularioEspacio'
+import DetalleEspacio from './DetalleEspacio'
 
 const filtroInicial: FiltroDisponibilidad = {
   modo: 'todos',
@@ -55,6 +56,7 @@ function GestionEspacios() {
   const [mensaje, setMensaje] = useState('')
   const [errorAccion, setErrorAccion] = useState('')
   const [eliminando, setEliminando] = useState(false)
+  const [detalleId, setDetalleId] = useState<number | null>(null)
 
   function buscar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
@@ -73,7 +75,9 @@ function GestionEspacios() {
       }
     }
 
+    setDetalleId(null)
     setFiltroAplicado({ modo, fecha, horaInicio, horaFin })
+    recargar()
   }
 
   function abrirFormulario(espacio: Espacio | null) {
@@ -216,15 +220,27 @@ function GestionEspacios() {
                 <Tarjeta className="flex h-full flex-col gap-3">
                   <div className="flex flex-col gap-1">
                     <h4 className="font-semibold">{espacio.nombre}</h4>
+
                     <p className="text-sm text-slate-600">
                       {espacio.tipo} · {espacio.capacidad} personas
                     </p>
+
                     {espacio.descripcion && (
-                      <p className="text-sm text-slate-500">{espacio.descripcion}</p>
+                      <p className="text-sm text-slate-500">
+                        {espacio.descripcion}
+                      </p>
                     )}
                   </div>
 
-                  <div className="mt-auto flex gap-2">
+                  <div className="mt-auto flex flex-wrap gap-2">
+                    <Boton
+                      variante="secundario"
+                      disabled={eliminando}
+                      onClick={() => setDetalleId(espacio.id)}
+                    >
+                      Ver detalle
+                    </Boton>
+
                     <Boton
                       variante="secundario"
                       disabled={eliminando}
@@ -232,6 +248,7 @@ function GestionEspacios() {
                     >
                       Editar
                     </Boton>
+
                     <Boton
                       variante="peligro"
                       disabled={eliminando}
@@ -240,6 +257,13 @@ function GestionEspacios() {
                       Eliminar
                     </Boton>
                   </div>
+
+                  {detalleId === espacio.id && (
+                    <DetalleEspacio
+                      espacio={espacio}
+                      onCerrar={() => setDetalleId(null)}
+                    />
+                  )}
                 </Tarjeta>
               </li>
             ))}
