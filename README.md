@@ -9,6 +9,7 @@ Frontend del Trabajo Práctico de Desarrollo de Software. Sistema de reserva de 
 - Vite
 - ESLint
 - npm 
+- Tailwind CSS
 
 ## Requisitos previos
 
@@ -56,3 +57,7 @@ Durante el desarrollo, Vite reenvía las solicitudes que empiezan con `/api` al 
 - `npm run build`: comprueba TypeScript y genera la aplicación en `dist`.
 - `npm run preview`: permite visualizar localmente la compilación generada previamente con `npm run build`.
 - `npm run lint`: revisa el código con ESLint.
+
+## Documentación
+
+Consultar el [índice de documentación](docs/README.md).
