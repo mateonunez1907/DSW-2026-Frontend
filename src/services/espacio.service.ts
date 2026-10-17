@@ -21,6 +21,10 @@ export function getEspacios(filtro?: FiltroDisponibilidad): Promise<Espacio[]> {
   return solicitar<Espacio[]>(`/api/espacios?${parametros}`)
 }
 
+export function getEspacio(id: number): Promise<Espacio> {
+  return solicitar<Espacio>(`/api/espacios/${id}`)
+}
+
 export function crearEspacio(datos: NuevoEspacio): Promise<Espacio> {
   return solicitar<Espacio>('/api/espacios', { metodo: 'POST', cuerpo: datos })
 }
